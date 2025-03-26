@@ -2,18 +2,16 @@
 import React, { useEffect, useState } from 'react';
 
 const pairs = [
-  'XAU/USD',
-  'XAG/USD',
-  'GBP/USD',
-  'USD/CHF',
-  'USD/JPY',
-  'AUD/USD',
-  'EUR/USD',
-  'FTSE 100',
-  'S&P 500',
+  { symbol: 'XAU/USD', code: 'XAU/USD' },
+  { symbol: 'XAG/USD', code: 'XAG/USD' },
+  { symbol: 'GBP/USD', code: 'GBP/USD' },
+  { symbol: 'USD/CHF', code: 'USD/CHF' },
+  { symbol: 'USD/JPY', code: 'USD/JPY' },
+  { symbol: 'AUD/USD', code: 'AUD/USD' },
+  { symbol: 'EUR/USD', code: 'EUR/USD' },
+  { symbol: 'FTSE 100', code: 'UKX' },
+  { symbol: 'S&P 500', code: 'SPX' },
 ];
-
-const getRandomPrice = (min, max) => (Math.random() * (max - min) + min).toFixed(2);
 
 const calculateZoneStatus = (price, high, low) => {
   const range = high - low;
@@ -28,19 +26,30 @@ function App() {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    const generateData = () => {
-      const items = pairs.map((pair) => {
-        const high = parseFloat(getRandomPrice(100, 200));
-        const low = parseFloat(getRandomPrice(50, 99));
-        const current = parseFloat(getRandomPrice(low, high));
-        const status = calculateZoneStatus(current, high, low);
-        return { pair, high, low, current, status };
-      });
-      setData(items);
+    const fetchData = async () => {
+      const results = await Promise.all(
+        pairs.map(async ({ symbol, code }) => {
+          try {
+            const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${code}&interval=1h&outputsize=500&apikey=28c16fa1e508453aa2d3d66eb7b5caa0`);
+            const json = await res.json();
+            const values = json.values || [];
+            const highs = values.map(v => parseFloat(v.high));
+            const lows = values.map(v => parseFloat(v.low));
+            const high = Math.max(...highs);
+            const low = Math.min(...lows);
+            const current = parseFloat(values[0].close);
+            const status = calculateZoneStatus(current, high, low);
+            return { symbol, high, low, current, status };
+          } catch (err) {
+            return { symbol, high: 0, low: 0, current: 0, status: 'Error' };
+          }
+        })
+      );
+      setData(results);
     };
 
-    generateData();
-    const interval = setInterval(generateData, 10000);
+    fetchData();
+    const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -48,14 +57,16 @@ function App() {
     <div style={{ padding: '1rem' }}>
       <h1 style={{ textAlign: 'center' }}>Market Zone Dashboard</h1>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-        {data.map(({ pair, high, low, current, status }) => (
-          <div key={pair} style={{ padding: '1rem', background: '#fff', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
-            <h2 style={{ marginBottom: '0.5rem' }}>{pair}</h2>
-            <p>High: {high}</p>
-            <p>Low: {low}</p>
-            <p>Current: {current}</p>
+        {data.map(({ symbol, high, low, current, status }) => (
+          <div key={symbol} style={{ padding: '1rem', background: '#fff', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
+            <h2>{symbol}</h2>
+            <p>High: {high.toFixed(2)}</p>
+            <p>Low: {low.toFixed(2)}</p>
+            <p>Current: {current.toFixed(2)}</p>
             <p>
-              Status: <strong style={{ color: status === 'Buy Zone' ? 'green' : status === 'Sell Zone' ? 'red' : 'gray' }}>{status}</strong>
+              Status: <strong style={{ color: status === 'Buy Zone' ? 'green' : status === 'Sell Zone' ? 'red' : 'gray' }}>
+                {status}
+              </strong>
             </p>
           </div>
         ))}
