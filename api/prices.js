@@ -1,6 +1,5 @@
 
 export default async function handler(req, res) {
-  const fetch = (await import('node-fetch')).default;
   const symbols = [
     { symbol: 'XAU/USD', code: 'XAU/USD' },
     { symbol: 'XAG/USD', code: 'XAG/USD' },
