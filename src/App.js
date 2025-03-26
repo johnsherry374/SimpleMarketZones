@@ -1,18 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 
-const pairs = [
-  { symbol: 'XAU/USD', code: 'XAU/USD' },
-  { symbol: 'XAG/USD', code: 'XAG/USD' },
-  { symbol: 'GBP/USD', code: 'GBP/USD' },
-  { symbol: 'USD/CHF', code: 'USD/CHF' },
-  { symbol: 'USD/JPY', code: 'USD/JPY' },
-  { symbol: 'AUD/USD', code: 'AUD/USD' },
-  { symbol: 'EUR/USD', code: 'EUR/USD' },
-  { symbol: 'FTSE 100', code: 'UKX' },
-  { symbol: 'S&P 500', code: 'SPX' },
-];
-
 const calculateZoneStatus = (price, high, low) => {
   const range = high - low;
   const topZone = high - 0.1 * range;
@@ -27,25 +15,17 @@ function App() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const results = await Promise.all(
-        pairs.map(async ({ symbol, code }) => {
-          try {
-            const res = await fetch(`https://api.twelvedata.com/time_series?symbol=${code}&interval=1h&outputsize=500&apikey=28c16fa1e508453aa2d3d66eb7b5caa0`);
-            const json = await res.json();
-            const values = json.values || [];
-            const highs = values.map(v => parseFloat(v.high));
-            const lows = values.map(v => parseFloat(v.low));
-            const high = Math.max(...highs);
-            const low = Math.min(...lows);
-            const current = parseFloat(values[0].close);
-            const status = calculateZoneStatus(current, high, low);
-            return { symbol, high, low, current, status };
-          } catch (err) {
-            return { symbol, high: 0, low: 0, current: 0, status: 'Error' };
-          }
-        })
-      );
-      setData(results);
+      try {
+        const res = await fetch('/api/prices');
+        const json = await res.json();
+        const results = json.map((item) => {
+          const status = calculateZoneStatus(item.current, item.high, item.low);
+          return { ...item, status };
+        });
+        setData(results);
+      } catch (err) {
+        console.error('Failed to fetch prices', err);
+      }
     };
 
     fetchData();
